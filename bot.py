@@ -45,8 +45,8 @@ async def on_message(message):
             else:
                 await message.reply("Please specify the event name, e.g. event details intro to leetcode")
         
-        # queries for ticket status
-        elif "ticket status" in content or "attendees" in content or "tickets remaining" in content:
+        # queries for ticket status - be more specific to avoid conflicts
+        elif any(phrase in content for phrase in ["ticket status", "tickets remaining", "how many tickets", "attendees for", "capacity for"]):
             await show_ticket_status(message)
         
         else:
@@ -67,10 +67,57 @@ def get_all_events(api_key):
     response.raise_for_status()
     return response.json()
 
+def get_event_attendees(event_id, api_key):
+    """Fetch attendees for a specific event using the orders endpoint."""
+    
+    # Use the orders endpoint which we know works
+    url = f"https://api.humanitix.com/v1/events/{event_id}/orders"
+    
+    headers = {
+        "x-api-key": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        # Get page 1 to count orders
+        params = {"page": 1}
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            orders_count = len(data.get("orders", []))
+            return {"total_attendees": orders_count}
+            
+    except Exception as e:
+        pass
+    
+    return None
+
+# --- Helper Functions ---
+def validate_api_key():
+    """Check if API key is available."""
+    if not humanitix_api_key:
+        return False
+    return True
+
+def find_event_by_name(user_input):
+    """Find an event by name using fuzzy matching."""
+    try:
+        data = get_all_events(humanitix_api_key)
+        events = data.get("events", [])
+        event_names = [e.get("name", "") for e in events]
+        matches = difflib.get_close_matches(user_input, event_names, n=1, cutoff=0.5)
+        if not matches:
+            return None, None
+        best_match = matches[0]
+        event = next(e for e in events if e.get("name", "") == best_match)
+        return best_match, event
+    except Exception:
+        return None, None
 
 # ------------------------------------------------------------------------ */
 async def list_events(message):
-    if not humanitix_api_key:
+    if not validate_api_key():
         await message.reply("❌ HUMANITIX_API_KEY not set in .env file.")
         return
     try:
@@ -91,21 +138,14 @@ async def list_events(message):
         
 # ------------------------------------------------------------------------ */
 async def show_event_details_by_name(message, user_input):
-    if not humanitix_api_key:
+    if not validate_api_key():
         await message.reply("❌ HUMANITIX_API_KEY not set in .env file.")
         return
     try:
-        data = get_all_events(humanitix_api_key)
-        events = data.get("events", [])
-        event_names = [e.get("name", "") for e in events]
-        # Find the closest match
-        matches = difflib.get_close_matches(user_input, event_names, n=1, cutoff=0.5)
-        if not matches:
+        best_match, event = find_event_by_name(user_input)
+        if not event:
             await message.reply(f"No event found matching '{user_input}'.")
             return
-        # Get the event with the closest name
-        best_match = matches[0]
-        event = next(e for e in events if e.get("name", "") == best_match)
         msg = get_event_details(event)
         await message.reply(msg)
     except Exception as e:
@@ -143,7 +183,7 @@ def get_event_details(event):
 # ------------------------------------------------------------------------ */
 async def show_ticket_status(message):
     """Handle queries for ticket status or attendee count for an event by name."""
-    if not humanitix_api_key:
+    if not validate_api_key():
         await message.reply("❌ HUMANITIX_API_KEY not set in .env file.")
         return
     try:
@@ -151,47 +191,54 @@ async def show_ticket_status(message):
         # Try to extract event name from the message
         match = re.search(r"(?:attendees|tickets remaining|ticket status) for (.+?)(\?|$)", content)
         if not match:
-            await message.reply("Please specify the event name, e.g. 'How many attendees for [event name]?' or 'How many tickets remaining for [event name]?'")
+            await message.reply("Please specify the event name, e.g. 'How many tickets remaining for [event name]?' or 'What is the ticket status for [event name]?'")
             return
         user_input = match.group(1).strip()
-        data = get_all_events(humanitix_api_key)
-        events = data.get("events", [])
-        event_names = [e.get("name", "") for e in events]
-        matches = difflib.get_close_matches(user_input, event_names, n=1, cutoff=0.5)
-        if not matches:
+        
+        best_match, event = find_event_by_name(user_input)
+        if not event:
             await message.reply(f"No event found matching '{user_input}'.")
             return
-        best_match = matches[0]
-        event = next(e for e in events if e.get("name", "") == best_match)
-        # Get ticket/attendee info
+        
+        # Get basic event info
         total_capacity = event.get("totalCapacity", None)
-        ticket_types = event.get("ticketTypes", [])
-        tickets_remaining = sum(t.get("quantity", 0) for t in ticket_types if not t.get("disabled", False) and not t.get("deleted", False))
-        if total_capacity is not None:
-            attendees = total_capacity - tickets_remaining
-        else:
-            attendees = "?"
-        msg = f"**{best_match}**\n"
-        if total_capacity is not None:
+        
+        # Try to get real-time attendee data
+        event_id = event.get("_id")
+        attendee_counts = get_event_attendees(event_id, humanitix_api_key)
+        
+        if attendee_counts:
+            # We got real attendee data!
+            total_sold = attendee_counts.get("total_attendees", 0)
+            
+            if total_sold > total_capacity:
+                await message.reply(f"**{best_match}**\n"
+                                    f"Total capacity: {total_capacity}\n"
+                                    f"Attendees: {total_sold}\n"
+                                    f"Tickets remaining: {0}")
+                return  
+            
+            tickets_remaining = total_capacity - total_sold if total_capacity else 0
+            
+            msg = f"**{best_match}**\n"
             msg += f"Total capacity: {total_capacity}\n"
-        msg += f"Attendees: {attendees}\n"
-        msg += f"Tickets remaining: {tickets_remaining}"
+            msg += f"Attendees: {total_sold}\n"
+            msg += f"Tickets remaining: {tickets_remaining}"
+        else:
+            # Fallback to basic remaining tickets
+            ticket_types = event.get("ticketTypes", [])
+            tickets_remaining = sum(t.get("quantity", 0) for t in ticket_types if not t.get("disabled", False) and not t.get("deleted", False))
+            
+            msg = f"**{best_match}**\n"
+            if total_capacity is not None:
+                msg += f"Total capacity: {total_capacity}\n"
+            msg += f"Tickets remaining: {tickets_remaining}\n"
+            msg += f"*(Real-time attendee data unavailable)*"
+        
         await message.reply(msg)
     except Exception as e:
         await message.reply(f"Error fetching ticket status: {e}")
 
-# --- Test block: Only runs if you run this file directly ---
-# if __name__ == "__main__":
-#     if not humanitix_api_key:
-#         print("Please set HUMANITIX_API_KEY in your .env file.")
-#     else:
-#         try:
-#             data = get_all_events(humanitix_api_key)
-#             print("Fetched events from Humanitix:")
-#             print(data)
-#         except Exception as e:
-#             print(f"Error fetching events: {e}")
-
-# # --- Start the bot (if not running as __main__) ---
+# --- Start the bot (if not running as __main__) ---
 bot.run(token)
 
