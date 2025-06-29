@@ -4,8 +4,9 @@ services:
   discord-bot:
     build: .
     container_name: humanitix-discord-bot
-    restart: unless-stopped
+    restart: always
     env_file:
       - .env
     volumes:
       - ./logs:/app/logs 
+

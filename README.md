@@ -1,7 +1,9 @@
 # Humanitix Discord Bot
 
 Built a Discord bot (Chico the cat 🐾) that fetches Humanitix event data in real time — including ticket sales, attendee counts and event details.
-Made it for my uni tech club so the events director doesn’t have to keep asking the IT team for updates.
+Made it for my uni tech club so the events director doesn't have to keep asking the IT team for updates.
+
+![Chico the Cat](chico.png)
 
 ## Features
 
@@ -17,6 +19,13 @@ Made it for my uni tech club so the events director doesn’t have to keep askin
 - `@bot event details [event name]` - Get detailed information about a specific event
 - `@bot ticket status for [event name]` - Check ticket availability and attendee count
 - `@bot how many tickets remaining for [event name]` - Alternative way to check ticket status
+
+## Upcoming Features
+
+- Connect to llm to make it more robust to typos
+   - Also to prompt engineer it's own personality
+- Add functionality where bot can increase ticket capacity from discord user request
+
 
 ## Setup
 
@@ -227,4 +236,3 @@ Made it for my uni tech club so the events director doesn’t have to keep askin
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
-
