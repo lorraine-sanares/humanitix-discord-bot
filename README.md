@@ -1,6 +1,7 @@
 # Humanitix Discord Bot
 
-A Discord bot that tracks Humanitix event data and provides real-time ticket sales and attendee counts.
+Built a Discord bot (Chico the cat 🐾) that fetches Humanitix event data in real time — including ticket sales, attendee counts and event details.
+Made it for my uni tech club so the events director doesn’t have to keep asking the IT team for updates.
 
 ## Features
 
