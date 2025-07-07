@@ -180,3 +180,59 @@ class Humanitix:
             return msg
         except Exception as e:
             return f"Error fetching ticket status: {e}"
+
+    def update_ticket_capacity(self, user_input, new_capacity):
+        """Update ticket capacity for an event by name."""
+        if not self.validate_api_key():
+            return "❌ HUMANITIX_API_KEY not set in .env file."
+        
+        try:
+            # Validate new capacity
+            try:
+                new_capacity = int(new_capacity)
+                if new_capacity < 0:
+                    return "❌ Capacity cannot be negative."
+            except ValueError:
+                return "❌ Please provide a valid number for capacity."
+            
+            # Find the event
+            best_match, event = self.find_event_by_name(user_input)
+            if not event:
+                return f"No event found matching '{user_input}'."
+            
+            event_id = event.get("_id")
+            if not event_id:
+                return "❌ Could not find event ID."
+            
+            # Get current attendee count to validate the change
+            attendee_counts = self.get_event_attendees(event_id)
+            current_attendees = attendee_counts.get("total_attendees", 0) if attendee_counts else 0
+            
+            if new_capacity < current_attendees:
+                return f"❌ Cannot set capacity to {new_capacity} because there are already {current_attendees} attendees."
+            
+            # Update the event capacity via API
+            url = f"https://api.humanitix.com/v1/events/{event_id}"
+            headers = {
+                "x-api-key": self.api_key,
+                "Content-Type": "application/json"
+            }
+            
+            # Prepare the update payload
+            update_data = {
+                "totalCapacity": new_capacity
+            }
+            
+            response = requests.patch(url, headers=headers, json=update_data)
+            
+            if response.status_code == 200:
+                tickets_remaining = new_capacity - current_attendees
+                return (f"✅ **{best_match}** capacity updated successfully!\n"
+                        f"**New capacity:** {new_capacity}\n"
+                        f"**Current attendees:** {current_attendees}\n"
+                        f"**Tickets remaining:** {tickets_remaining}")
+            else:
+                return f"❌ Failed to update capacity. API returned status {response.status_code}: {response.text}"
+                
+        except Exception as e:
+            return f"Error updating ticket capacity: {e}"

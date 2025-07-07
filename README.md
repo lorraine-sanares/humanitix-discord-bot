@@ -10,6 +10,7 @@ Made it for my uni tech club so the events director doesn't have to keep asking 
 - **Event Listing**: Get a list of all your Humanitix events
 - **Event Details**: Get detailed information about specific events (date, time, venue, description)
 - **Real-time Ticket Status**: Check how many tickets are remaining and current attendee counts
+- **Update Ticket Capacity**: Change the capacity of events directly from Discord
 - **Fuzzy Matching**: Find events by name even with partial matches
 - **Mention-based Commands**: Simply mention the bot to interact with it
 
@@ -19,12 +20,16 @@ Made it for my uni tech club so the events director doesn't have to keep asking 
 - `@bot event details [event name]` - Get detailed information about a specific event
 - `@bot ticket status for [event name]` - Check ticket availability and attendee count
 - `@bot how many tickets remaining for [event name]` - Alternative way to check ticket status
+- `@bot update capacity for [event name] to [number]` - Change the capacity of an event
+- `@bot change capacity for [event name] to [number]` - Alternative way to update capacity
+- `@bot set capacity for [event name] to [number]` - Another way to update capacity
 
 ## Upcoming Features
 
 - Connect to llm to make it more robust to typos
    - Also to prompt engineer it's own personality
-- Add functionality where bot can increase ticket capacity from discord user request
+- Add more event management features (create events, update event details, etc.)
+- Add role-based permissions for capacity updates
 
 
 ## Setup

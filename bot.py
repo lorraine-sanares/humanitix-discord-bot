@@ -49,6 +49,10 @@ async def on_message(message):
         elif any(phrase in content for phrase in ["ticket status", "tickets remaining", "how many tickets", "attendees for", "capacity for"]):
             await show_ticket_status(message)
         
+        # queries for updating ticket capacity
+        elif "update capacity" in content or "change capacity" in content or "set capacity" in content:
+            await update_ticket_capacity(message)
+        
         else:
             await message.reply("👋 You mentioned me!")
     
@@ -83,6 +87,45 @@ async def show_ticket_status(message):
         await message.reply(msg)
     except Exception as e:
         await message.reply(f"Error fetching ticket status: {e}")
+
+# ------------------------------------------------------------------------ */
+async def update_ticket_capacity(message):
+    """Handle queries for updating ticket capacity for an event."""
+    try:
+        content = message.content.lower()
+        
+        # Try to extract event name and new capacity from the message
+        # Pattern: "update capacity for [event name] to [number]" or similar
+        patterns = [
+            r"(?:update|change|set) capacity for (.+?) to (\d+)",
+            r"(?:update|change|set) (.+?) capacity to (\d+)",
+            r"capacity for (.+?) to (\d+)"
+        ]
+        
+        event_name = None
+        new_capacity = None
+        
+        for pattern in patterns:
+            match = re.search(pattern, content)
+            if match:
+                event_name = match.group(1).strip()
+                new_capacity = match.group(2).strip()
+                break
+        
+        if not event_name or not new_capacity:
+            await message.reply(
+                "Please specify the event name and new capacity, e.g.:\n"
+                "• `@bot update capacity for [event name] to [number]`\n"
+                "• `@bot change capacity for [event name] to [number]`\n"
+                "• `@bot set capacity for [event name] to [number]`"
+            )
+            return
+        
+        msg = humanitix.update_ticket_capacity(event_name, new_capacity)
+        await message.reply(msg)
+        
+    except Exception as e:
+        await message.reply(f"Error updating ticket capacity: {e}")
 
 # --- Start the bot (if not running as __main__) ---
 bot.run(token)
