@@ -21,6 +21,8 @@ bot = commands.Bot(command_prefix='!', intents=discord.Intents.default())
 async def on_ready():
     print(f'✅ Bot is online: {bot.user}')
 
+# NEED TO CHANGE THIS LOGIC, FUNCTIONS DEPEND ON THE ORDER OF THE IF STATEMENTS
+
 @bot.event # run when a message is sent to the bot
 async def on_message(message):
     # Don't respond to ourselves
@@ -45,13 +47,13 @@ async def on_message(message):
             else:
                 await message.reply("Please specify the event name, e.g. event details intro to leetcode")
         
+        # queries for updating ticket capacity (moved above ticket status)
+        elif "update capacity" in content or "change capacity" in content or "set capacity" in content:
+            await update_ticket_capacity(message)
+        
         # queries for ticket status - be more specific to avoid conflicts
         elif any(phrase in content for phrase in ["ticket status", "tickets remaining", "how many tickets", "attendees for", "capacity for"]):
             await show_ticket_status(message)
-        
-        # queries for updating ticket capacity
-        elif "update capacity" in content or "change capacity" in content or "set capacity" in content:
-            await update_ticket_capacity(message)
         
         else:
             await message.reply("👋 You mentioned me!")
